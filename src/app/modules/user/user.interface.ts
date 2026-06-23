@@ -16,8 +16,6 @@ export enum Role {
     ADMIN = "ADMIN",
     USER = "USER",
     COMPANY = "COMPANY",
-    DELIVERY_AGENT = "DELIVERY_AGENT",
-    HUB_ADMIN = "HUB_ADMIN",
 }
 
 export interface IUser {
