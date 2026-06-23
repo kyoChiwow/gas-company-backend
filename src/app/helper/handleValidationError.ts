@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import mongoose from "mongoose";
-import {
-  TErrorSources,
-  TGenericErrorResponse,
-} from "../interfaces/error.types";
+import { TErrorSources, TGenericErrorResponse } from "../interfaces/error.types";
+
 
 export const handleValidationError = (
   err: mongoose.Error.ValidationError,

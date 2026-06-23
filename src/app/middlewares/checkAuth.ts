@@ -2,10 +2,10 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status-codes";
 import { JwtPayload } from "jsonwebtoken";
 import { envVars } from "../config/env";
-import AppError from "../errorHelpers/appError";
-import { IsActive } from "../modules/user/user.interface";
-import { User } from "../modules/user/user.model";
 import { verifyToken } from "../utils/jwt";
+import AppError from "../errorHelpers/appError";
+import { User } from "../modules/user/user.model";
+import { IsActive } from "../modules/user/user.interface";
 
 export const checkAuth =
   (...authRoles: string[]) =>
