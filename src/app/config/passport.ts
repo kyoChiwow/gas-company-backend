@@ -2,8 +2,8 @@
 import bcryptjs from "bcryptjs";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { IsActive } from "../modules/user/user.interface";
 import { User } from "../modules/user/user.model";
+import { IsActive } from "../modules/user/user.interface";
 
 passport.use(
   new LocalStrategy(
