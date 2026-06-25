@@ -1,14 +1,13 @@
-import expressSession from 'express-session';
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express, { Request, Response, Router } from "express";
+import express, { Request, Response } from "express";
+import expressSession from "express-session";
 import { envVars } from "./app/config/env";
-import passport from 'passport';
-import { globalErrorHandler } from './app/middlewares/globalErrorHandler';
-import notFound from './app/middlewares/notFound';
-
-
-
+import "./app/config/passport";
+import { globalErrorHandler } from "./app/middlewares/globalErrorHandler";
+import notFound from "./app/middlewares/notFound";
+import { router } from "./app/routes";
+import passport from "passport";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -28,13 +27,13 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use("/api/v1", Router);
+app.use("/api/v1", router);
 
 app.get("/", (req: Request, res: Response) => {
-    res.status(200).json({
-        message: "Welcome to Parcelsync Parcel Manamgement System!",
-    })
-})
+  res.status(200).json({
+    message: "Welcome to Taher Enterprise!",
+  });
+});
 
 app.use(globalErrorHandler);
 app.use(notFound);

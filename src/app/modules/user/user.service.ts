@@ -1,14 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import bcryptjs from 'bcryptjs';
-import httpStatus from 'http-status-codes';
+import bcryptjs from "bcryptjs";
+import httpStatus from "http-status-codes";
+import { JwtPayload } from "jsonwebtoken";
+import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/appError";
+import { QueryBuilder } from "../../utils/queryBuilder";
+import { userSearchableFields } from "./user.constants";
 import { IAuthProvider, IUser, Role } from "./user.interface";
 import { User } from "./user.model";
-import { envVars } from '../../config/env';
-import { OtpServices } from '../otp/otp.service';
-import { QueryBuilder } from '../../utils/queryBuilder';
-import { userSearchableFields } from './user.constants';
-import { JwtPayload } from 'jsonwebtoken';
 
 const createUserService = async (payload: Partial<IUser>) => {
   const { email, password, ...rest } = payload;
@@ -44,8 +43,6 @@ const createUserService = async (payload: Partial<IUser>) => {
       { session },
     );
 
-    await OtpServices.sendOTPService(user.email, user.name, session);
-
     await session.commitTransaction();
     await session.endSession();
 
@@ -78,10 +75,7 @@ const updateUserService = async (
   payload: Partial<IUser>,
   decodedToken: JwtPayload,
 ) => {
-  if (
-    decodedToken.role === Role.USER ||
-    decodedToken.role === Role.COMPANY
-  ) {
+  if (decodedToken.role === Role.USER || decodedToken.role === Role.COMPANY) {
     if (userId !== decodedToken.userId) {
       throw new AppError(httpStatus.FORBIDDEN, "You are not authorized!");
     }
@@ -103,10 +97,7 @@ const updateUserService = async (
   }
 
   if (payload.role) {
-    if (
-      decodedToken.role === Role.USER ||
-      decodedToken.role === Role.COMPANY
-    ) {
+    if (decodedToken.role === Role.USER || decodedToken.role === Role.COMPANY) {
       throw new AppError(
         httpStatus.FORBIDDEN,
         "You are not authorized to change role!",
@@ -115,10 +106,7 @@ const updateUserService = async (
   }
 
   if (payload.isActive || payload.isDeleted || payload.isVerified) {
-    if (
-      decodedToken.role === Role.USER ||
-      decodedToken.role === Role.COMPANY
-    ) {
+    if (decodedToken.role === Role.USER || decodedToken.role === Role.COMPANY) {
       throw new AppError(
         httpStatus.FORBIDDEN,
         "You are not authorized to change status!",
@@ -138,18 +126,18 @@ const getSingleUserService = async (userId: string) => {
   const user = await User.findById(userId).select("-password");
 
   return user;
-}
+};
 
 const getMeService = async (userId: string) => {
   const user = await User.findById(userId).select("-password");
 
   return user;
-}
+};
 
 export const UserServices = {
   createUserService,
   getAllUsersService,
   updateUserService,
   getSingleUserService,
-  getMeService
+  getMeService,
 };
