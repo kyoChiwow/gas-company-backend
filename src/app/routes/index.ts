@@ -5,6 +5,7 @@ import { SectionRoutes } from "../modules/section/section.route";
 import { TypeRoutes } from "../modules/type/type.route";
 import { UserRoutes } from "../modules/user/user.route";
 import { CategoriesRoutes } from "../modules/categories/categories..route";
+import { BrandRoutes } from "../modules/brand/brand.route";
 
 export const router = Router();
 
@@ -32,6 +33,10 @@ const moduleRoutes = [
   {
     path: "/categories",
     route: CategoriesRoutes,
+  },
+  {
+    path: "/brand",
+    route: BrandRoutes,
   }
 ];
 
