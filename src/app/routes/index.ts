@@ -4,6 +4,7 @@ import { OtpRoutes } from "../modules/otp/otp.route";
 import { SectionRoutes } from "../modules/section/section.route";
 import { TypeRoutes } from "../modules/type/type.route";
 import { UserRoutes } from "../modules/user/user.route";
+import { CategoriesRoutes } from "../modules/categories/categories..route";
 
 export const router = Router();
 
@@ -28,6 +29,10 @@ const moduleRoutes = [
     path: "/type",
     route: TypeRoutes,
   },
+  {
+    path: "/categories",
+    route: CategoriesRoutes,
+  }
 ];
 
 moduleRoutes.forEach((route) => {
