@@ -51,7 +51,6 @@ const getSingleUser = catchAsync(async (req: Request, res: Response) => {
 const getMe = catchAsync(async (req: Request, res: Response) => {
   const decodedToken = req.user as JwtPayload;
   const result = await UserServices.getMeService(decodedToken.userId);
-  console.log(decodedToken.userId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -80,10 +79,85 @@ const updateUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const deleteUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const decodedToken = req.user as JwtPayload;
+
+  const user = await UserServices.deleteUserService(id as string, decodedToken);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User deleted successfully!",
+    data: user,
+  });
+});
+
+const restoreUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const decodedToken = req.user as JwtPayload;
+
+  const user = await UserServices.restoreUserService(id as string, decodedToken);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User restored successfully!",
+    data: user,
+  });
+});
+
+const makeUserAdmin = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const decodedToken = req.user as JwtPayload;
+
+  const user = await UserServices.makeUserAdminService(id as string, decodedToken);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User made admin successfully!",
+    data: user,
+  });
+});
+
+const makeUserSuperAdmin = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const decodedToken = req.user as JwtPayload;
+
+  const user = await UserServices.makeUserSuperAdminService(id as string, decodedToken);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User made super admin successfully!",
+    data: user,
+  });
+});
+
+const makeUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const decodedToken = req.user as JwtPayload;
+
+  const user = await UserServices.makeUserService(id as string, decodedToken);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User role changed to user successfully!",
+    data: user,
+  });
+});
+
 export const UserControllers = {
   createUser,
   getAllUsers,
   getSingleUser,
   getMe,
   updateUser,
+  deleteUser,
+  makeUserAdmin,
+  makeUserSuperAdmin,
+  makeUser,
+  restoreUser,
 };

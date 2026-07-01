@@ -4,6 +4,7 @@ import httpStatus from "http-status-codes";
 import { JwtPayload } from "jsonwebtoken";
 import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/appError";
+import { manageUser } from "../../helper/manageUser";
 import { QueryBuilder } from "../../utils/queryBuilder";
 import { userSearchableFields } from "./user.constants";
 import { IAuthProvider, IUser, Role } from "./user.interface";
@@ -128,6 +129,122 @@ const getSingleUserService = async (userId: string) => {
   return user;
 };
 
+const makeUserAdminService = async (
+  userId: string,
+  decodedToken: JwtPayload,
+) => {
+  const targetUser = await User.findById(userId);
+
+  if (!targetUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  manageUser(decodedToken, targetUser);
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { role: [Role.ADMIN] },
+    { new: true, runValidators: true },
+  );
+
+  if (!updatedUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  return updatedUser;
+};
+
+const makeUserSuperAdminService = async (
+  userId: string,
+  decodedToken: JwtPayload,
+) => {
+  const targetUser = await User.findById(userId);
+
+  if (!targetUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  manageUser(decodedToken, targetUser);
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { role: [Role.SUPER_ADMIN] },
+    { new: true, runValidators: true },
+  );
+
+  if (!updatedUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  return updatedUser;
+};
+
+const makeUserService = async (userId: string, decodedToken: JwtPayload) => {
+  const targetUser = await User.findById(userId);
+
+  if (!targetUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  manageUser(decodedToken, targetUser);
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { role: [Role.USER] },
+    { new: true, runValidators: true },
+  );
+
+  if (!updatedUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  return updatedUser;
+};
+
+const deleteUserService = async (userId: string, decodedToken: JwtPayload) => {
+  const targetUser = await User.findById(userId);
+
+  if (!targetUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  manageUser(decodedToken, targetUser);
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { isDeleted: true },
+    { new: true, runValidators: true },
+  );
+
+  if (!updatedUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  return updatedUser;
+};
+
+const restoreUserService = async (userId: string, decodedToken: JwtPayload) => {
+  const targetUser = await User.findById(userId);
+
+  if (!targetUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  manageUser(decodedToken, targetUser);
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { isDeleted: false },
+    { new: true, runValidators: true },
+  );
+
+  if (!updatedUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  return updatedUser;
+};
+
 const getMeService = async (userId: string) => {
   const user = await User.findById(userId).select("-password");
 
@@ -140,4 +257,9 @@ export const UserServices = {
   updateUserService,
   getSingleUserService,
   getMeService,
+  deleteUserService,
+  makeUserAdminService,
+  makeUserSuperAdminService,
+  makeUserService,
+  restoreUserService,
 };
