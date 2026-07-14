@@ -7,6 +7,9 @@ export interface IProduct {
   section?: Types.ObjectId;
   type?: Types.ObjectId;
   categories?: Types.ObjectId[];
+  photo?: string[];
+  description?: string;
+  price?: string;
 }
 
 
@@ -25,4 +28,6 @@ export interface IProductCSVRow {
   section?: string;
   type?: string;
   categories?: string;
+  description?: string;
+  price?: string;
 }

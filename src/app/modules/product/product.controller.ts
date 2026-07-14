@@ -20,7 +20,6 @@ const createProduct = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-
 const parseCSVBuffer = (buffer: Buffer): Promise<IProductCSVRow[]> => {
   return new Promise((resolve, reject) => {
     const rows: IProductCSVRow[] = [];

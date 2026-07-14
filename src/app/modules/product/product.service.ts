@@ -23,43 +23,43 @@ const resolveRefByName = async (
     .session(session);
 
   if (existing) {
-    return existing._id;
+    return existing._id as Types.ObjectId;
   }
 
   const created = await model.create(
-  [
-    {
-      name: trimmedName,
-      slug: slugify(trimmedName, {
-        lower: true,
-        strict: true,
-        trim: true,
-      }),
-    },
-  ],
-  { session }
-);
+    [
+      {
+        name: trimmedName,
+        slug: slugify(trimmedName, {
+          lower: true,
+          strict: true,
+          trim: true,
+        }),
+      },
+    ],
+    { session }
+  );
 
-  return created[0]._id;
+  return created[0]._id as Types.ObjectId;
 };
 
 const resolveCategoryIds = async (
   categoryNames: string[],
   session: ClientSession,
 ): Promise<Types.ObjectId[]> => {
-  const ids: Types.ObjectId[] = [];
+  const cleanedNames = categoryNames
+    .map((name) => name.trim())
+    .filter(Boolean);
 
-  for (const rawName of categoryNames) {
-    const name = rawName.trim();
+  if (!cleanedNames.length) return [];
 
-    if (!name) continue;
-
-    const id = await resolveRefByName(Categories, name, session);
-    ids.push(id);
-  }
+  const ids = await Promise.all(
+    cleanedNames.map((name) => resolveRefByName(Categories, name, session))
+  );
 
   return ids;
 };
+
 
 const resolveProductRefs = async (
   payload: Partial<IProductInput> | IProductCSVRow,
@@ -68,21 +68,22 @@ const resolveProductRefs = async (
 ) => {
   const resolved: Partial<IProduct> = {};
 
-  if (payload.brand) {
-    resolved.brand = await resolveRefByName(Brand, payload.brand, session);
-  }
+  const brandPromise = payload.brand ? resolveRefByName(Brand, payload.brand, session) : null;
+  const sectionPromise = payload.section ? resolveRefByName(Section, payload.section, session) : null;
+  const typePromise = payload.type ? resolveRefByName(Type, payload.type, session) : null;
+  const categoriesPromise = categories && categories.length ? resolveCategoryIds(categories, session) : null;
 
-  if (payload.section) {
-    resolved.section = await resolveRefByName(Section, payload.section, session);
-  }
+  const [brandId, sectionId, typeId, categoryIds] = await Promise.all([
+    brandPromise,
+    sectionPromise,
+    typePromise,
+    categoriesPromise,
+  ]);
 
-  if (payload.type) {
-    resolved.type = await resolveRefByName(Type, payload.type, session);
-  }
-
-  if (categories && categories.length) {
-    resolved.categories = await resolveCategoryIds(categories, session);
-  }
+  if (brandId) resolved.brand = brandId;
+  if (sectionId) resolved.section = sectionId;
+  if (typeId) resolved.type = typeId;
+  if (categoryIds) resolved.categories = categoryIds;
 
   return resolved;
 };
@@ -113,7 +114,9 @@ const createProductService = async (payload: IProductInput) => {
 
     return product[0];
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     throw error;
   } finally {
     session.endSession();
@@ -151,10 +154,13 @@ const createProductsFromCSVService = async (rows: IProductCSVRow[]) => {
 
       const resolvedRefs = await resolveProductRefs(row, session, categoryNames);
 
+      // FIX: Saves description and price from the CSV row!
       const product = await Product.create(
         [
           {
             name: row.name.trim(),
+            description: row.description,
+            price: row.price,
             ...resolvedRefs,
           },
         ],
@@ -168,7 +174,9 @@ const createProductsFromCSVService = async (rows: IProductCSVRow[]) => {
 
     return createdProducts;
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     throw error;
   } finally {
     session.endSession();
@@ -240,7 +248,9 @@ const updateProductService = async (
 
     return updatedProduct;
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     throw error;
   } finally {
     session.endSession();
