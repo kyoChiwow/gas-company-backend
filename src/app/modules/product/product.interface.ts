@@ -19,6 +19,9 @@ export interface IProductInput {
   section?: string;
   type?: string;
   categories?: string[];
+  photo?: string[];
+  description?: string;
+  price?: string;
 }
 
 

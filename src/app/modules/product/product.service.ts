@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import slugify from 'slugify';
 import httpStatus from "http-status-codes";
 import mongoose, { ClientSession, Model, Types } from "mongoose";
+import slugify from "slugify";
 import AppError from "../../errorHelpers/appError";
 import { QueryBuilder } from "../../utils/queryBuilder";
 import { Brand } from "../brand/brand.model";
@@ -37,7 +37,7 @@ const resolveRefByName = async (
         }),
       },
     ],
-    { session }
+    { session },
   );
 
   return created[0]._id as Types.ObjectId;
@@ -47,19 +47,16 @@ const resolveCategoryIds = async (
   categoryNames: string[],
   session: ClientSession,
 ): Promise<Types.ObjectId[]> => {
-  const cleanedNames = categoryNames
-    .map((name) => name.trim())
-    .filter(Boolean);
+  const cleanedNames = categoryNames.map((name) => name.trim()).filter(Boolean);
 
   if (!cleanedNames.length) return [];
 
   const ids = await Promise.all(
-    cleanedNames.map((name) => resolveRefByName(Categories, name, session))
+    cleanedNames.map((name) => resolveRefByName(Categories, name, session)),
   );
 
   return ids;
 };
-
 
 const resolveProductRefs = async (
   payload: Partial<IProductInput> | IProductCSVRow,
@@ -68,10 +65,19 @@ const resolveProductRefs = async (
 ) => {
   const resolved: Partial<IProduct> = {};
 
-  const brandPromise = payload.brand ? resolveRefByName(Brand, payload.brand, session) : null;
-  const sectionPromise = payload.section ? resolveRefByName(Section, payload.section, session) : null;
-  const typePromise = payload.type ? resolveRefByName(Type, payload.type, session) : null;
-  const categoriesPromise = categories && categories.length ? resolveCategoryIds(categories, session) : null;
+  const brandPromise = payload.brand
+    ? resolveRefByName(Brand, payload.brand, session)
+    : null;
+  const sectionPromise = payload.section
+    ? resolveRefByName(Section, payload.section, session)
+    : null;
+  const typePromise = payload.type
+    ? resolveRefByName(Type, payload.type, session)
+    : null;
+  const categoriesPromise =
+    categories && categories.length
+      ? resolveCategoryIds(categories, session)
+      : null;
 
   const [brandId, sectionId, typeId, categoryIds] = await Promise.all([
     brandPromise,
@@ -88,7 +94,9 @@ const resolveProductRefs = async (
   return resolved;
 };
 
-const createProductService = async (payload: IProductInput) => {
+const createProductService = async (
+  payload: IProductInput & { photo?: string[] },
+) => {
   const session = await mongoose.startSession();
 
   try {
@@ -104,6 +112,9 @@ const createProductService = async (payload: IProductInput) => {
       [
         {
           name: payload.name,
+          description: payload.description,
+          price: payload.price,
+          photo: payload.photo,
           ...resolvedRefs,
         },
       ],
@@ -111,7 +122,6 @@ const createProductService = async (payload: IProductInput) => {
     );
 
     await session.commitTransaction();
-
     return product[0];
   } catch (error) {
     if (session.inTransaction()) {
@@ -152,7 +162,11 @@ const createProductsFromCSVService = async (rows: IProductCSVRow[]) => {
             .filter(Boolean)
         : [];
 
-      const resolvedRefs = await resolveProductRefs(row, session, categoryNames);
+      const resolvedRefs = await resolveProductRefs(
+        row,
+        session,
+        categoryNames,
+      );
 
       // FIX: Saves description and price from the CSV row!
       const product = await Product.create(
@@ -216,10 +230,9 @@ const getSingleProductService = async (id: string) => {
 
 const updateProductService = async (
   id: string,
-  payload: Partial<IProductInput>,
+  payload: Partial<IProductInput> & { photo?: string[] },
 ) => {
   const product = await Product.findById(id);
-
   if (!product) {
     throw new AppError(httpStatus.NOT_FOUND, "Product not found!");
   }
@@ -239,13 +252,15 @@ const updateProductService = async (
       id,
       {
         ...(payload.name && { name: payload.name }),
+        ...(payload.description && { description: payload.description }),
+        ...(payload.price && { price: payload.price }),
+        ...(payload.photo && { photo: payload.photo }),
         ...resolvedRefs,
       },
       { new: true, runValidators: true, session },
     );
 
     await session.commitTransaction();
-
     return updatedProduct;
   } catch (error) {
     if (session.inTransaction()) {
