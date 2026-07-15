@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose";
-import { IQuota } from "./quota.interface";
+import { IQuota, QUOTA_PAYMENT_STATUS } from "./quota.interface";
 
 const quotaSchema = new Schema<IQuota>(
   {
@@ -11,6 +11,13 @@ const quotaSchema = new Schema<IQuota>(
     address: { type: String },
     isDeleted: { type: Boolean, default: false },
     isClosed: { type: Boolean, default: false },
+
+    paymentStatus: {
+      type: String,
+      enum: Object.values(QUOTA_PAYMENT_STATUS),
+      default: QUOTA_PAYMENT_STATUS.PENDING,
+    },
+    paymentId: { type: Schema.Types.ObjectId, ref: "Payment" },
   },
   { timestamps: true, versionKey: false },
 );

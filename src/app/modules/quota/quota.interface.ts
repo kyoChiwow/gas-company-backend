@@ -18,4 +18,7 @@ export interface IQuota {
   isClosed?: boolean;
   paymentStatus?: QUOTA_PAYMENT_STATUS;
   paymentId?: Types.ObjectId;
+
+  createdAt?: Date;
+  updatedAt?: Date;
 }

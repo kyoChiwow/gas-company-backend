@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { JwtPayload } from "jsonwebtoken";
 import AppError from "../../errorHelpers/appError";
+import { generatePdf, IInvoiceData } from "../../utils/invoice";
 import { sendEmail } from "../../utils/sendEmail";
+import { QUOTA_PAYMENT_STATUS } from "../quota/quota.interface";
 import { Quota } from "../quota/quota.model";
 import { IProduct } from "../product/product.interface";
 import { IUser } from "../user/user.interface";
@@ -9,64 +11,76 @@ import { PAYMENT_STATUS, PAYMENT_METHOD } from "./payment.interface";
 import { Payment } from "./payment.model";
 import httpStatus from "http-status-codes";
 import mongoose from "mongoose";
-import { generatePdf, IInvoiceData } from "../../utils/invoice";
+import { uploadPdfBufferToCloudinary } from "../../utils/uploadCloudinaryBuffer";
+import { ISSLCommerz } from "../sslcommerz/sslcommerz.interface";
+import { SSLServices } from "../sslcommerz/sslCommerz.service";
 
-// Utility function to complete a Payment and finalize the corresponding Quota status
-const finalizeQuotaPayment = async (
+const finalizePaymentAndQuota = async (
   paymentId: string,
   quotaId: string,
   session: mongoose.ClientSession
 ) => {
+  // 1. Update Payment status to PAID
   const updatedPayment = await Payment.findByIdAndUpdate(
     paymentId,
     { status: PAYMENT_STATUS.PAID },
     { new: true, runValidators: true, session }
   );
 
-  // Close the Quota once it's fully confirmed/paid
+  // 2. Update Quota status to PAID and save paymentId reference
   const updatedQuota = await Quota.findByIdAndUpdate(
     quotaId,
-    { isClosed: true },
+    { 
+      paymentStatus: QUOTA_PAYMENT_STATUS.PAID,
+      paymentId: new mongoose.Types.ObjectId(paymentId)
+    },
     { new: true, runValidators: true, session }
   ).populate("productId").populate("userId");
 
   if (!updatedQuota) {
-    throw new AppError(httpStatus.NOT_FOUND, "Quota not found!");
+    throw new AppError(httpStatus.NOT_FOUND, "Quota request not found!");
   }
   if (!updatedPayment) {
-    throw new AppError(httpStatus.NOT_FOUND, "Payment details missing!");
+    throw new AppError(httpStatus.NOT_FOUND, "Payment details not found!");
   }
 
-  // Construct Invoice details representing e-commerce/cylinder data
+  // 3. Formulate Invoice Payload with Product Details
+  const productInfo = updatedQuota.productId as unknown as IProduct;
+  const userInfo = updatedQuota.userId as unknown as IUser;
+
   const invoiceData: IInvoiceData = {
-    bookingDate: updatedQuota?.createdAt as Date,
-    guestCount: undefined, // Ignored or set as dynamic/default for products
-    totalAmount: updatedPayment?.amount,
-    tourTitle: (updatedQuota?.productId as unknown as IProduct)?.name, // Product Name
-    transactionId: updatedPayment?.transactionId,
-    userName: (updatedQuota?.userId as unknown as IUser)?.name
+    transactionId: updatedPayment.transactionId,
+    quotaDate: updatedQuota.createdAt as Date,
+    userName: userInfo?.name || "Customer",
+    productName: productInfo?.name || "Gas Product",
+    volume: updatedQuota.volume || "N/A",
+    cylinderOrRefill: updatedQuota.cylinderOrRefill ? "Cylinder + Gas" : "Refill Only",
+    totalAmount: updatedPayment.amount,
   };
 
+  // 4. Create invoice PDF
   const pdfBuffer = await generatePdf(invoiceData);
-  const cloudinaryResult = await uploadBufferFromCloudinary(pdfBuffer, "invoice");
+  const cloudinaryResult = await uploadPdfBufferToCloudinary(pdfBuffer, "invoice");
 
   if (!cloudinaryResult) {
-    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Failed to upload invoice to Cloudinary!");
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Failed to upload invoice PDF!");
   }
 
+  // 5. Update Payment with secure invoice URL
   await Payment.findByIdAndUpdate(
-    updatedPayment?._id,
-    { invoiceUrl: cloudinaryResult?.secure_url },
+    updatedPayment._id,
+    { invoiceUrl: cloudinaryResult.secure_url },
     { runValidators: true, session }
   );
 
+  // 6. Send receipt confirmation email
   await sendEmail({
-    to: (updatedQuota?.userId as unknown as IUser)?.email,
-    subject: "Quota Invoice Details",
+    to: userInfo?.email,
+    subject: `Order Invoice - ${updatedPayment.transactionId}`,
     templateName: "invoice",
     templateData: invoiceData,
     attachments: [{
-      filename: "invoice.pdf",
+      filename: `invoice-${updatedPayment.transactionId}.pdf`,
       content: pdfBuffer,
       contentType: "application/pdf"
     }]
@@ -75,54 +89,42 @@ const finalizeQuotaPayment = async (
   return { updatedPayment, updatedQuota };
 };
 
-const initPaymentService = async (
-  quotaId: string, 
-  paymentMethod: PAYMENT_METHOD,
-  amount: number // Required to spawn an internal transaction/payment entry
-) => {
-  const existingQuota = await Quota.findOne({ _id: quotaId, isDeleted: false }).populate("userId");
-
-  if (!existingQuota) {
-    throw new AppError(httpStatus.NOT_FOUND, "Active Quota not found!");
+const initPaymentService = async (quotaId: string, paymentMethod: PAYMENT_METHOD, amount: number) => {
+  // Verify that the Quota request exists
+  const quota = await Quota.findById(quotaId).populate("userId");
+  if (!quota) {
+    throw new AppError(httpStatus.NOT_FOUND, "Quota not found!");
   }
 
-  // Create an unique transactional identifier
-  const transactionId = `TXN-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-  // 1. Create or overwrite a payment entry for the Quota
+  // Check if a payment record already exists for this Quota
   let payment = await Payment.findOne({ quota: quotaId });
-  if (payment) {
-    payment.paymentMethod = paymentMethod;
-    payment.amount = amount;
-    payment.transactionId = transactionId;
-    await payment.save();
-  } else {
+
+  const internalTxnId = payment?.transactionId || `TXN-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  if (!payment) {
     payment = await Payment.create({
-      quota: quotaId,
-      transactionId,
+      quota: quota._id,
+      transactionId: internalTxnId,
       amount,
       paymentMethod,
-      status: PAYMENT_STATUS.UNPAID
+      status: PAYMENT_STATUS.UNPAID,
     });
+  } else {
+    // If it exists, update the payment method and amount in case of changes
+    payment.paymentMethod = paymentMethod;
+    payment.amount = amount;
+    await payment.save();
   }
 
-  const user = existingQuota.userId as any;
-  const sslPayload: ISSLCommerz = {
-    address: existingQuota.address || user.address || "N/A",
-    email: user.email,
-    phoneNumber: user.phone || "N/A",
-    name: user.name,
-    amount: payment.amount,
-    transactionId: payment.transactionId,
-  };
+  const userInfo = quota.userId as any;
 
-  // Case 1: Cash on Delivery
+  // Case A: Cash On Delivery (COD)
   if (paymentMethod === PAYMENT_METHOD.COD) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-      await finalizeQuotaPayment(payment._id.toString(), existingQuota._id.toString(), session);
+      await finalizePaymentAndQuota(payment._id.toString(), quota._id.toString(), session);
       await session.commitTransaction();
       session.endSession();
 
@@ -138,8 +140,17 @@ const initPaymentService = async (
     }
   }
 
-  // Case 2: SSLCommerz
+  // Case B: SSLCommerz Digital Payment
   if (paymentMethod === PAYMENT_METHOD.SSLCOMMERZ) {
+    const sslPayload: ISSLCommerz = {
+      address: quota.address || userInfo?.address || "Dhaka, Bangladesh",
+      email: userInfo?.email,
+      phoneNumber: userInfo?.phone || "N/A",
+      name: userInfo?.name,
+      amount,
+      transactionId: internalTxnId,
+    };
+
     const sslPayment = await SSLServices.sslPaymentInit(sslPayload);
 
     return {
@@ -149,7 +160,7 @@ const initPaymentService = async (
     };
   }
 
-  throw new AppError(httpStatus.BAD_REQUEST, "Selected payment method is invalid!");
+  throw new AppError(httpStatus.BAD_REQUEST, "Unsupported payment method provided.");
 };
 
 const successPaymentService = async (query: Record<string, string>) => {
@@ -159,17 +170,17 @@ const successPaymentService = async (query: Record<string, string>) => {
   try {
     const payment = await Payment.findOne({ transactionId: query.transactionId });
     if (!payment) {
-      throw new AppError(httpStatus.NOT_FOUND, "Transaction records not found!");
+      throw new AppError(httpStatus.NOT_FOUND, "Payment record not found!");
     }
 
-    await finalizeQuotaPayment(payment._id.toString(), payment.quota.toString(), session);
+    await finalizePaymentAndQuota(payment._id.toString(), payment.quota.toString(), session);
 
     await session.commitTransaction();
     session.endSession();
 
     return {
       success: true,
-      message: "Payment finished successfully!"
+      message: "Online payment successful!"
     };
   } catch (error) {
     await session.abortTransaction();
@@ -189,14 +200,11 @@ const failPaymentService = async (query: Record<string, string>) => {
       { new: true, runValidators: true, session },
     );
 
-    // If payment fails, ensure the quota remains open
-    if (updatedPayment) {
-      await Quota.findByIdAndUpdate(
-        updatedPayment.quota,
-        { isClosed: false },
-        { runValidators: true, session },
-      );
-    }
+    await Quota.findByIdAndUpdate(
+      updatedPayment?.quota,
+      { paymentStatus: QUOTA_PAYMENT_STATUS.FAILED },
+      { runValidators: true, session },
+    );
 
     await session.commitTransaction();
     session.endSession();
@@ -223,13 +231,11 @@ const cancelPaymentService = async (query: Record<string, string>) => {
       { new: true, runValidators: true, session },
     );
 
-    if (updatedPayment) {
-      await Quota.findByIdAndUpdate(
-        updatedPayment.quota,
-        { isClosed: false },
-        { runValidators: true, session },
-      );
-    }
+    await Quota.findByIdAndUpdate(
+      updatedPayment?.quota,
+      { paymentStatus: QUOTA_PAYMENT_STATUS.PENDING },
+      { runValidators: true, session },
+    );
 
     await session.commitTransaction();
     session.endSession();
@@ -247,24 +253,21 @@ const cancelPaymentService = async (query: Record<string, string>) => {
 
 const getInvoiceDownloadUrlService = async (paymentId: string, decodedToken: JwtPayload) => {
   const user = decodedToken.userId;
-
   if (!user) {
-    throw new AppError(httpStatus.BAD_REQUEST, "User credentials missing!");
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid token credentials.");
   }
 
-  const quota = await Quota.findOne({ payment: paymentId }).orFail(new Error("Quota linked to payment not found!"));
+  const payment = await Payment.findById(paymentId).orFail(new AppError(httpStatus.NOT_FOUND, "Payment records not found."));
+  const quota = await Quota.findById(payment.quota).orFail(new AppError(httpStatus.NOT_FOUND, "Quota entry mismatch."));
 
-  if (quota?.userId?.toString() !== user) {
-    throw new AppError(httpStatus.UNAUTHORIZED, "Unauthorized access to invoice!");
+  if (quota.userId?.toString() !== user) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Unauthorized permission check.");
   }
-
-  const payment = await Payment.findById(paymentId)
-    .select("invoiceUrl").orFail(new Error("Payment not found!"));
 
   if (!payment.invoiceUrl) {
     return {
       success: false,
-      message: "Invoice generation pending!",
+      message: "Invoice not generated yet.",
       downloadUrl: null
     };
   }

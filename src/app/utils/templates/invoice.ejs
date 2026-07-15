@@ -13,16 +13,16 @@
         margin: auto;
         padding: 30px;
         border: 1px solid #eee;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
       }
       .header {
-        border-bottom: 2px solid #007bff;
+        border-bottom: 2px solid #28a745;
         padding-bottom: 20px;
         margin-bottom: 20px;
       }
       .header h1 {
         margin: 0;
-        color: #007bff;
+        color: #28a745;
         text-transform: uppercase;
       }
       .details {
@@ -62,7 +62,7 @@
   <body>
     <div class="invoice-box">
       <div class="header">
-        <h1>Booking Invoice</h1>
+        <h1>Quota Bill Invoice</h1>
         <p>Transaction ID: <strong><%= transactionId %></strong></p>
       </div>
 
@@ -75,8 +75,8 @@
         </div>
         <div style="text-align: right">
           <p>
-            <strong>Booking Date:</strong><br />
-            <%= new Date(bookingDate).toLocaleDateString() %>
+            <strong>Invoice Date:</strong><br />
+            <%= new Date(quotaDate).toLocaleDateString() %>
           </p>
         </div>
       </div>
@@ -84,15 +84,17 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Description</th>
-            <th>Guests</th>
-            <th>Amount</th>
+            <th>Product Description</th>
+            <th>Volume</th>
+            <th>Supply Type</th>
+            <th>Amount Paid</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><%= tourTitle %></td>
-            <td><%= guestCount %></td>
+            <td><%= productName %></td>
+            <td><%= volume %></td>
+            <td><%= cylinderOrRefill %></td>
             <td>TK <%= totalAmount.toFixed(2) %></td>
           </tr>
         </tbody>
@@ -103,10 +105,8 @@
       </div>
 
       <div class="footer">
-        <p>Thank you for choosing our service!</p>
-        <p>
-          This is a computer-generated invoice and doesn't require a signature.
-        </p>
+        <p>Thank you for choosing our services!</p>
+        <p>This is an automated invoice receipt and does not require a signature.</p>
       </div>
     </div>
   </body>

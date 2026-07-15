@@ -4,10 +4,11 @@ import AppError from "../errorHelpers/appError";
 
 export interface IInvoiceData {
   transactionId: string;
-  bookingDate: Date;
+  quotaDate: Date;
   userName: string;
-  tourTitle: string;
-  guestCount: number;
+  productName: string;
+  volume: string;
+  cylinderOrRefill: string;
   totalAmount: number;
 }
 
@@ -25,9 +26,9 @@ export const generatePdf = async (
 
       // --- Header ---
       doc
-        .fillColor("#007bff")
+        .fillColor("#28a745") // Gas theme color (Green)
         .fontSize(25)
-        .text("BOOKING INVOICE", { align: "right" });
+        .text("QUOTA PAYMENT INVOICE", { align: "right" });
       doc
         .fillColor("#444444")
         .fontSize(10)
@@ -36,7 +37,7 @@ export const generatePdf = async (
         });
       doc.moveDown();
 
-      // Draw a horizontal line
+      // Horizontal line
       doc.moveTo(50, 100).lineTo(550, 100).strokeColor("#eeeeee").stroke();
       doc.moveDown(2);
 
@@ -48,23 +49,26 @@ export const generatePdf = async (
         .text("Billed To:");
       doc.font("Helvetica").text(invoiceData.userName);
       doc.text(
-        `Date: ${new Date(invoiceData.bookingDate).toLocaleDateString()}`,
+        `Date: ${new Date(invoiceData.quotaDate).toLocaleDateString()}`,
       );
       doc.moveDown(2);
 
-      // --- Booking Details Table-like Layout ---
+      // --- Bill Specifications Table ---
       const tableTop = 200;
-      doc.font("Helvetica-Bold").text("Description", 50, tableTop);
-      doc.text("Guests", 350, tableTop);
+      doc.font("Helvetica-Bold").text("Item Description", 50, tableTop);
+      doc.text("Volume", 280, tableTop);
+      doc.text("Type", 380, tableTop);
       doc.text("Total (BDT)", 480, tableTop);
 
       doc
         .moveTo(50, tableTop + 15)
         .lineTo(550, tableTop + 15)
+        .strokeColor("#28a745")
         .stroke();
 
-      doc.font("Helvetica").text(invoiceData.tourTitle, 50, tableTop + 25);
-      doc.text(invoiceData.guestCount.toString(), 350, tableTop + 25);
+      doc.font("Helvetica").text(invoiceData.productName, 50, tableTop + 25);
+      doc.text(invoiceData.volume, 280, tableTop + 25);
+      doc.text(invoiceData.cylinderOrRefill, 380, tableTop + 25);
       doc
         .font("Helvetica-Bold")
         .text(`${invoiceData.totalAmount.toFixed(2)}`, 480, tableTop + 25);
@@ -72,7 +76,7 @@ export const generatePdf = async (
       // --- Footer ---
       doc.moveDown(10);
       doc.fontSize(10).font("Helvetica-Oblique").fillColor("#777777");
-      doc.text("Thank you for booking with us!", 50, doc.y, {
+      doc.text("Thank you for choosing our energy service!", 50, doc.y + 100, {
         align: "center",
         width: 500,
       });
@@ -80,7 +84,6 @@ export const generatePdf = async (
       doc.end();
     });
   } catch (error: any) {
-    console.log(error);
-    throw new AppError(401, `PDF creation failed! ${error.message}`);
+    throw new AppError(500, `PDF generation failed: ${error.message}`);
   }
 };

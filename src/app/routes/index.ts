@@ -9,6 +9,7 @@ import { BrandRoutes } from "../modules/brand/brand.route";
 import { ProductRoutes } from "../modules/product/product.route";
 import { QuotaRoutes } from "../modules/quota/quota.route";
 import { UploadRoutes } from "../modules/upload/upload.route";
+import { PaymentRoutes } from "../modules/payment/payment.route";
 
 export const router = Router();
 
@@ -52,6 +53,10 @@ const moduleRoutes = [
   {
     path: "/upload",
     route: UploadRoutes,
+  },
+  {
+    path: "/payment",
+    route: PaymentRoutes,
   }
 ];
 
