@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        color: #333;
+        line-height: 1.6;
+      }
+      .invoice-box {
+        max-width: 800px;
+        margin: auto;
+        padding: 30px;
+        border: 1px solid #eee;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+      }
+      .header {
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+      }
+      .header h1 {
+        margin: 0;
+        color: #007bff;
+        text-transform: uppercase;
+      }
+      .details {
+        margin-bottom: 40px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+      .table th {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 12px;
+        text-align: left;
+      }
+      .table td {
+        border: 1px solid #dee2e6;
+        padding: 12px;
+      }
+      .total-section {
+        text-align: right;
+        font-size: 18px;
+        font-weight: bold;
+        margin-top: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 50px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-box">
+      <div class="header">
+        <h1>Booking Invoice</h1>
+        <p>Transaction ID: <strong><%= transactionId %></strong></p>
+      </div>
+
+      <div class="details">
+        <div>
+          <p>
+            <strong>Billed To:</strong><br />
+            <%= userName %>
+          </p>
+        </div>
+        <div style="text-align: right">
+          <p>
+            <strong>Booking Date:</strong><br />
+            <%= new Date(bookingDate).toLocaleDateString() %>
+          </p>
+        </div>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Guests</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><%= tourTitle %></td>
+            <td><%= guestCount %></td>
+            <td>TK <%= totalAmount.toFixed(2) %></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        Total Paid: TK <%= totalAmount.toFixed(2) %>
+      </div>
+
+      <div class="footer">
+        <p>Thank you for choosing our service!</p>
+        <p>
+          This is a computer-generated invoice and doesn't require a signature.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
