@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import httpStatus from "http-status-codes";
-import mongoose, { ClientSession, Model, Types } from "mongoose";
+import mongoose, { Model, Types } from "mongoose";
 import slugify from "slugify";
 import AppError from "../../errorHelpers/appError";
 import { QueryBuilder } from "../../utils/queryBuilder";
@@ -14,18 +14,20 @@ import { Product } from "./product.model";
 const resolveRefByName = async (
   model: Model<any>,
   name: string,
-  session: ClientSession,
+  session?: any,
 ): Promise<Types.ObjectId> => {
   const trimmedName = name.trim();
 
-  const existing = await model
-    .findOne({ name: { $regex: `^${trimmedName}$`, $options: "i" } })
-    .session(session);
+  const query = model.findOne({
+    name: { $regex: `^${trimmedName}$`, $options: "i" },
+  });
+  const existing = session ? await query.session(session) : await query;
 
   if (existing) {
     return existing._id as Types.ObjectId;
   }
 
+  const createOptions = session ? { session } : {};
   const created = await model.create(
     [
       {
@@ -37,7 +39,7 @@ const resolveRefByName = async (
         }),
       },
     ],
-    { session },
+    createOptions,
   );
 
   return created[0]._id as Types.ObjectId;
@@ -45,51 +47,47 @@ const resolveRefByName = async (
 
 const resolveCategoryIds = async (
   categoryNames: string[],
-  session: ClientSession,
+  session?: any,
 ): Promise<Types.ObjectId[]> => {
   const cleanedNames = categoryNames.map((name) => name.trim()).filter(Boolean);
-
   if (!cleanedNames.length) return [];
 
-  const ids = await Promise.all(
-    cleanedNames.map((name) => resolveRefByName(Categories, name, session)),
-  );
+  const ids: Types.ObjectId[] = [];
+
+  for (const name of cleanedNames) {
+    const id = await resolveRefByName(Categories, name, session);
+    ids.push(id);
+  }
 
   return ids;
 };
 
 const resolveProductRefs = async (
   payload: Partial<IProductInput> | IProductCSVRow,
-  session: ClientSession,
+  session?: any,
   categories?: string[],
 ) => {
   const resolved: Partial<IProduct> = {};
 
-  const brandPromise = payload.brand
-    ? resolveRefByName(Brand, payload.brand, session)
-    : null;
-  const sectionPromise = payload.section
-    ? resolveRefByName(Section, payload.section, session)
-    : null;
-  const typePromise = payload.type
-    ? resolveRefByName(Type, payload.type, session)
-    : null;
-  const categoriesPromise =
-    categories && categories.length
-      ? resolveCategoryIds(categories, session)
-      : null;
+  if (payload.brand) {
+    resolved.brand = await resolveRefByName(Brand, payload.brand, session);
+  }
 
-  const [brandId, sectionId, typeId, categoryIds] = await Promise.all([
-    brandPromise,
-    sectionPromise,
-    typePromise,
-    categoriesPromise,
-  ]);
+  if (payload.section) {
+    resolved.section = await resolveRefByName(
+      Section,
+      payload.section,
+      session,
+    );
+  }
 
-  if (brandId) resolved.brand = brandId;
-  if (sectionId) resolved.section = sectionId;
-  if (typeId) resolved.type = typeId;
-  if (categoryIds) resolved.categories = categoryIds;
+  if (payload.type) {
+    resolved.type = await resolveRefByName(Type, payload.type, session);
+  }
+
+  if (categories && categories.length) {
+    resolved.categories = await resolveCategoryIds(categories, session);
+  }
 
   return resolved;
 };
