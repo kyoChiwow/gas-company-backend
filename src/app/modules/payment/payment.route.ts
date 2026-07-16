@@ -5,7 +5,7 @@ import { Role } from "../user/user.interface";
 
 const router = Router();
 
-router.post("/init-payment/:quotaId", checkAuth(Role.USER, Role.ADMIN), PaymentControllers.initPayment);
+router.post("/init-payment/:quotaId", checkAuth(...Object.values(Role)), PaymentControllers.initPayment);
 
 router.post("/success", PaymentControllers.successPayment);
 router.post("/fail", PaymentControllers.failPayment);

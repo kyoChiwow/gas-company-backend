@@ -43,7 +43,7 @@ export const sendEmail = async ({
       subject,
       html,
       attachments: attachments?.map((attachment) => ({
-        fileName: attachment.filename,
+        filename: attachment.filename,
         content: attachment.content,
         contentType: attachment.contentType,
       })),

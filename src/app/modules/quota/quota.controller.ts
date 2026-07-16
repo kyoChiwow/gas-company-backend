@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response } from "express";
 import httpStatus from "http-status-codes";
 import { catchAsync } from "../../utils/catchASync";
@@ -5,7 +6,12 @@ import { sendResponse } from "../../utils/sendResponse";
 import { QuotaServices } from "./quota.service";
 
 const createQuota = catchAsync(async (req: Request, res: Response) => {
-  const result = await QuotaServices.createQuotaService(req.body);
+  const user = req.user as any; 
+
+  const result = await QuotaServices.createQuotaService({
+    ...req.body,
+    userId: user?.userId
+  });
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,

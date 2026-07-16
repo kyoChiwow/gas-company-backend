@@ -28,7 +28,20 @@ const verifyOTP = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const resendOTP = catchAsync(async (req: Request, res: Response) => {
+  const { email } = req.body;
+  await OtpServices.resendOTPService(email);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "OTP resent successfully",
+    data: null,
+  });
+});
+
 export const OtpController = {
   sendOTP,
   verifyOTP,
+  resendOTP,
 };

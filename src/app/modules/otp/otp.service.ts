@@ -73,7 +73,44 @@ const verifyOTPService = async (email: string, otp: string) => {
   ]);
 };
 
+const resendOTPService = async (
+  email: string,
+  session?: ClientSession,
+) => {
+  const user = await User.findOne({ email }).session(session as ClientSession);
+
+  if (!user) {
+    throw new AppError(401, "User not found!");
+  }
+  if (user?.isVerified) {
+    throw new AppError(401, "You are already verified!");
+  }
+
+  // Reuse the existing generation, Redis set, and email dispatch logic
+  const otp = generateOTP();
+  const redisKey = `otp:${email}`;
+
+  // This will cleanly overwrite the old OTP and reset the 2-minute timer
+  await redisClient.set(redisKey, otp, {
+    expiration: {
+      type: "EX",
+      value: OTP_EXPIRATION,
+    },
+  });
+
+  await sendEmail({
+    to: email,
+    subject: "OTP Verification - Resend",
+    templateName: "otp",
+    templateData: {
+      name: user.name,
+      otp,
+    },
+  });
+};
+
 export const OtpServices = {
   sendOTPService,
   verifyOTPService,
+  resendOTPService,
 };

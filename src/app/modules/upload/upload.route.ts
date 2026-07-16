@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   "/signature",
-  checkAuth(Role.ADMIN),
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
   UploadControllers.getCloudinarySignature,
 );
 
