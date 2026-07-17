@@ -15,6 +15,7 @@ import { SSLServices } from "../sslcommerz/sslCommerz.service";
 import { IUser } from "../user/user.interface";
 import { PAYMENT_METHOD, PAYMENT_STATUS } from "./payment.interface";
 import { Payment } from "./payment.model";
+import { paymentSearchableFields } from "./payment.utils";
 
 const finalizePaymentAndQuota = async (
   paymentId: string,
@@ -333,16 +334,22 @@ const getAllPaymentsService = async (query: Record<string, string>) => {
   const queryBuilder = new QueryBuilder(
     Payment.find().populate({
       path: "quota",
-      populate: [{ path: "userId" }, { path: "productId" }],
+      populate: [
+        { path: "userId" },
+        { path: "productId" }
+      ]
     }),
-    query,
+    query
   );
 
-  const payments = queryBuilder.sort().fields().paginate();
-  const [data, meta] = await Promise.all([
-    payments.build(),
-    payments.getMeta(),
-  ]);
+  const payments = queryBuilder
+    .search(paymentSearchableFields) 
+    .filter()
+    .sort()
+    .fields()
+    .paginate();
+
+  const [data, meta] = await Promise.all([payments.build(), payments.getMeta()]);
 
   return {
     data,

@@ -2,16 +2,16 @@
 import httpStatus from "http-status-codes";
 import mongoose, { Model, Types } from "mongoose";
 import slugify from "slugify";
+import cloudinary from "../../config/cloudinary";
 import AppError from "../../errorHelpers/appError";
 import { QueryBuilder } from "../../utils/queryBuilder";
 import { Brand } from "../brand/brand.model";
 import { Categories } from "../categories/categories.model";
 import { Section } from "../section/section.model";
 import { Type } from "../type/type.model";
+import { getPublicIdFromUrl } from "../upload/upload.utils";
 import { IProduct, IProductCSVRow, IProductInput } from "./product.interface";
 import { Product } from "./product.model";
-import { getPublicIdFromUrl } from "../upload/upload.utils";
-import cloudinary from "../../config/cloudinary";
 
 const resolveRefByName = async (
   model: Model<any>,
@@ -264,12 +264,15 @@ const updateProductService = async (
 
     if (payload.photo && product.photo && product.photo !== payload.photo) {
       const oldPublicId = getPublicIdFromUrl(product.photo);
-      
+
       if (oldPublicId) {
         try {
           await cloudinary.uploader.destroy(oldPublicId);
         } catch (cloudinaryError) {
-          console.error("Failed deleting legacy image from Cloudinary storage:", cloudinaryError);
+          console.error(
+            "Failed deleting legacy image from Cloudinary storage:",
+            cloudinaryError,
+          );
         }
       }
     }

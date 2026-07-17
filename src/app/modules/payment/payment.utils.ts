@@ -1,0 +1,1 @@
+export const paymentSearchableFields = ["transactionId", "status", "paymentMethod"];
