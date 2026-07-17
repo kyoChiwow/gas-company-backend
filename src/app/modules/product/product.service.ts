@@ -10,6 +10,8 @@ import { Section } from "../section/section.model";
 import { Type } from "../type/type.model";
 import { IProduct, IProductCSVRow, IProductInput } from "./product.interface";
 import { Product } from "./product.model";
+import { getPublicIdFromUrl } from "../upload/upload.utils";
+import cloudinary from "../../config/cloudinary";
 
 const resolveRefByName = async (
   model: Model<any>,
@@ -228,7 +230,7 @@ const getSingleProductService = async (id: string) => {
 
 const updateProductService = async (
   id: string,
-  payload: Partial<IProductInput> & { photo?: string[] },
+  payload: Partial<IProductInput> & { photo?: string },
 ) => {
   const product = await Product.findById(id);
   if (!product) {
@@ -240,23 +242,37 @@ const updateProductService = async (
   try {
     session.startTransaction();
 
+    // 1. Resolve referencing ObjectIds if name schemas changed
     const resolvedRefs = await resolveProductRefs(
       payload,
       session,
       payload.categories,
     );
 
+    // 2. Perform the database update operation inside the transaction context
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
       {
         ...(payload.name && { name: payload.name }),
         ...(payload.description && { description: payload.description }),
         ...(payload.price && { price: payload.price }),
-        ...(payload.photo && { photo: payload.photo }),
+        ...(payload.photo !== undefined && { photo: payload.photo }),
         ...resolvedRefs,
       },
       { new: true, runValidators: true, session },
     );
+
+    if (payload.photo && product.photo && product.photo !== payload.photo) {
+      const oldPublicId = getPublicIdFromUrl(product.photo);
+      
+      if (oldPublicId) {
+        try {
+          await cloudinary.uploader.destroy(oldPublicId);
+        } catch (cloudinaryError) {
+          console.error("Failed deleting legacy image from Cloudinary storage:", cloudinaryError);
+        }
+      }
+    }
 
     await session.commitTransaction();
     return updatedProduct;

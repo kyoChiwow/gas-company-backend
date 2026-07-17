@@ -18,20 +18,22 @@ import { SSLServices } from "../sslcommerz/sslCommerz.service";
 const finalizePaymentAndQuota = async (
   paymentId: string,
   quotaId: string,
+  targetPaymentStatus: PAYMENT_STATUS,
+  targetQuotaPaymentStatus: QUOTA_PAYMENT_STATUS,
   session: mongoose.ClientSession
 ) => {
-  // 1. Update Payment status to PAID
+  // 1. Update Payment status to the specified target state
   const updatedPayment = await Payment.findByIdAndUpdate(
     paymentId,
-    { status: PAYMENT_STATUS.PAID },
+    { status: targetPaymentStatus },
     { new: true, runValidators: true, session }
   );
 
-  // 2. Update Quota status to PAID and save paymentId reference
+  // 2. Update Quota status and map paymentId reference
   const updatedQuota = await Quota.findByIdAndUpdate(
     quotaId,
     { 
-      paymentStatus: QUOTA_PAYMENT_STATUS.PAID,
+      paymentStatus: targetQuotaPaymentStatus,
       paymentId: new mongoose.Types.ObjectId(paymentId)
     },
     { new: true, runValidators: true, session }
@@ -74,9 +76,12 @@ const finalizePaymentAndQuota = async (
   );
 
   // 6. Send receipt confirmation email
+  const isPaid = targetPaymentStatus === PAYMENT_STATUS.PAID;
   await sendEmail({
     to: userInfo?.email,
-    subject: `Order Invoice - ${updatedPayment.transactionId}`,
+    subject: isPaid
+      ? `Payment Receipt - ${updatedPayment.transactionId}`
+      : `Order Confirmation (Cash on Delivery) - ${updatedPayment.transactionId}`,
     templateName: "invoice",
     templateData: invoiceData,
     attachments: [{
@@ -124,7 +129,15 @@ const initPaymentService = async (quotaId: string, paymentMethod: PAYMENT_METHOD
     session.startTransaction();
 
     try {
-      await finalizePaymentAndQuota(payment._id.toString(), quota._id.toString(), session);
+      // For COD: keeps status UNPAID on the Payment record and PENDING on the Quota request
+      await finalizePaymentAndQuota(
+        payment._id.toString(), 
+        quota._id.toString(), 
+        PAYMENT_STATUS.UNPAID, 
+        QUOTA_PAYMENT_STATUS.PENDING, 
+        session
+      );
+      
       await session.commitTransaction();
       session.endSession();
 
@@ -173,7 +186,14 @@ const successPaymentService = async (query: Record<string, string>) => {
       throw new AppError(httpStatus.NOT_FOUND, "Payment record not found!");
     }
 
-    await finalizePaymentAndQuota(payment._id.toString(), payment.quota.toString(), session);
+    // Online payment success: marks both elements as PAID
+    await finalizePaymentAndQuota(
+      payment._id.toString(), 
+      payment.quota.toString(), 
+      PAYMENT_STATUS.PAID, 
+      QUOTA_PAYMENT_STATUS.PAID, 
+      session
+    );
 
     await session.commitTransaction();
     session.endSession();

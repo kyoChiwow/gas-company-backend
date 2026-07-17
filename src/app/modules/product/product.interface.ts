@@ -7,7 +7,7 @@ export interface IProduct {
   section?: Types.ObjectId;
   type?: Types.ObjectId;
   categories?: Types.ObjectId[];
-  photo?: string[];
+  photo?: string;
   description?: string;
   price?: string;
 }
@@ -19,7 +19,7 @@ export interface IProductInput {
   section?: string;
   type?: string;
   categories?: string[];
-  photo?: string[];
+  photo?: string;
   description?: string;
   price?: string;
 }
