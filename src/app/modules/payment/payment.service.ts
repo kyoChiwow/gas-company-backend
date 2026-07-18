@@ -396,7 +396,7 @@ const updatePaymentStatusService = async (
         quotaStatus = QUOTA_PAYMENT_STATUS.PENDING;
         break;
       case PAYMENT_STATUS.CANCELLED:
-        quotaStatus = QUOTA_PAYMENT_STATUS.PENDING; // Resets payment pipeline back to unresolved
+        quotaStatus = QUOTA_PAYMENT_STATUS.PENDING;
         break;
       case PAYMENT_STATUS.FAILED:
         quotaStatus = QUOTA_PAYMENT_STATUS.FAILED;
@@ -422,6 +422,23 @@ const updatePaymentStatusService = async (
   }
 };
 
+const getSinglePaymentService = async (paymentId: string) => {
+  const payment = await Payment.findById(paymentId)
+    .populate({
+      path: "quota",
+      populate: [
+        { path: "userId" },
+        { path: "productId" }
+      ]
+    });
+
+  if (!payment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Payment details not found!");
+  }
+
+  return payment;
+};
+
 export const PaymentServices = {
   initPaymentService,
   successPaymentService,
@@ -430,4 +447,5 @@ export const PaymentServices = {
   getInvoiceDownloadUrlService,
   getAllPaymentsService,
   updatePaymentStatusService,
+  getSinglePaymentService
 };

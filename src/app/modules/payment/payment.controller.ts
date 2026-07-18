@@ -124,6 +124,18 @@ const updatePaymentStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getSinglePayment = catchAsync(async (req: Request, res: Response) => {
+  const { paymentId } = req.params;
+  const result = await PaymentServices.getSinglePaymentService(paymentId as string);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Payment details retrieved successfully!",
+    data: result,
+  });
+});
+
 export const PaymentControllers = {
   initPayment,
   successPayment,
@@ -133,4 +145,5 @@ export const PaymentControllers = {
   validatePayment,
   getAllPayments,
   updatePaymentStatus,
+  getSinglePayment
 };

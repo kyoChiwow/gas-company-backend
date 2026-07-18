@@ -11,6 +11,12 @@ router.get(
   PaymentControllers.getAllPayments
 );
 
+router.get(
+  "/:paymentId", 
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN), 
+  PaymentControllers.getSinglePayment
+);
+
 router.post("/init-payment/:quotaId", checkAuth(...Object.values(Role)), PaymentControllers.initPayment);
 
 router.post("/success", PaymentControllers.successPayment);
