@@ -5,6 +5,7 @@ import { PAYMENT_STATUS } from "../payment/payment.interface";
 import { Payment } from "../payment/payment.model";
 import { IQuota, QUOTA_PAYMENT_STATUS } from "./quota.interface";
 import { Quota } from "./quota.model";
+import { JwtPayload } from "jsonwebtoken";
 
 const createQuotaService = async (payload: IQuota) => {
   const quota = await Quota.create(payload);
@@ -103,10 +104,36 @@ const deleteQuotaService = async (id: string) => {
   }
 };
 
+const getMyQuotasService = async (
+  decodedToken: JwtPayload,
+  query: Record<string, string>
+) => {
+  const userId = decodedToken.userId;
+  if (!userId) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid token credentials.");
+  }
+
+  // Restrict queries strictly to this user's active records
+  const queryBuilder = new QueryBuilder(
+    Quota.find({ userId, isDeleted: false }).populate("userId productId"),
+    query,
+  );
+
+  const quotas = queryBuilder.sort().fields().paginate();
+
+  const [data, meta] = await Promise.all([quotas.build(), quotas.getMeta()]);
+
+  return {
+    data,
+    meta,
+  };
+};
+
 export const QuotaServices = {
   createQuotaService,
   getAllQuotasService,
   getSingleQuotaService,
   updateQuotaService,
   deleteQuotaService,
+  getMyQuotasService
 };

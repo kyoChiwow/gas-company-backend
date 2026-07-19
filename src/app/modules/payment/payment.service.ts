@@ -439,6 +439,45 @@ const getSinglePaymentService = async (paymentId: string) => {
   return payment;
 };
 
+const getMyPaymentsService = async (
+  decodedToken: JwtPayload,
+  query: Record<string, string>
+) => {
+  const userId = decodedToken.userId;
+  if (!userId) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid token credentials.");
+  }
+
+  const queryBuilder = new QueryBuilder(
+    Payment.find().populate({
+      path: "quota",
+      match: { userId: userId },
+      populate: [
+        { path: "userId" },
+        { path: "productId" }
+      ]
+    }),
+    query
+  );
+
+  const payments = queryBuilder
+    .search(paymentSearchableFields)
+    .filter()
+    .sort()
+    .fields()
+    .paginate();
+
+  const rawData = await payments.build();
+  const meta = await payments.getMeta();
+
+  const data = rawData.filter((payment) => payment.quota !== null);
+
+  return {
+    data,
+    meta,
+  };
+};
+
 export const PaymentServices = {
   initPaymentService,
   successPaymentService,
@@ -447,5 +486,6 @@ export const PaymentServices = {
   getInvoiceDownloadUrlService,
   getAllPaymentsService,
   updatePaymentStatusService,
-  getSinglePaymentService
+  getSinglePaymentService,
+  getMyPaymentsService
 };

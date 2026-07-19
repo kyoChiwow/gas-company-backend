@@ -18,6 +18,12 @@ router.get(
 );
 
 router.get(
+  "/my-quotas",
+  checkAuth(...Object.values(Role)),
+  QuotaControllers.getMyQuotas,
+);
+
+router.get(
   "/:id",
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN, Role.USER),
   QuotaControllers.getSingleQuota,

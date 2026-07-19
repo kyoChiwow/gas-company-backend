@@ -9,7 +9,7 @@ export const uploadPdfBufferToCloudinary = (pdfBuffer: Buffer, folderName: strin
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: folderName,
-        resource_type: "raw",
+        resource_type: "image",
         format: "pdf",
       },
       (error: any, result: any) => {

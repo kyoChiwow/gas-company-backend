@@ -136,6 +136,23 @@ const getSinglePayment = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMyPayments = catchAsync(async (req: Request, res: Response) => {
+  const decodedToken = req.user as JwtPayload;
+
+  const result = await PaymentServices.getMyPaymentsService(
+    decodedToken,
+    req.query as Record<string, string>,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Your payment history retrieved successfully!",
+    data: result.data,
+    meta: result.meta,
+  });
+});
+
 export const PaymentControllers = {
   initPayment,
   successPayment,
@@ -145,5 +162,6 @@ export const PaymentControllers = {
   validatePayment,
   getAllPayments,
   updatePaymentStatus,
-  getSinglePayment
+  getSinglePayment,
+  getMyPayments
 };

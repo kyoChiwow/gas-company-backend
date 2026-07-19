@@ -4,6 +4,7 @@ import httpStatus from "http-status-codes";
 import { catchAsync } from "../../utils/catchASync";
 import { sendResponse } from "../../utils/sendResponse";
 import { QuotaServices } from "./quota.service";
+import { JwtPayload } from "jsonwebtoken";
 
 const createQuota = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as any; 
@@ -77,10 +78,28 @@ const deleteQuota = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMyQuotas = catchAsync(async (req: Request, res: Response) => {
+  const decodedToken = req.user as JwtPayload;
+
+  const result = await QuotaServices.getMyQuotasService(
+    decodedToken,
+    req.query as Record<string, string>
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Your personal quota entries retrieved successfully!",
+    data: result.data,
+    meta: result.meta,
+  });
+});
+
 export const QuotaControllers = {
   createQuota,
   getAllQuotas,
   getSingleQuota,
   updateQuota,
   deleteQuota,
+  getMyQuotas
 };
