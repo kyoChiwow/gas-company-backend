@@ -209,4 +209,4 @@ Test authentication, product operations, quota workflows, image uploads, and pay
 
 ## License
 
-This project was developed for the Taher Enterprise gas management application.
+This project was developed by Shafiqul Islam.
